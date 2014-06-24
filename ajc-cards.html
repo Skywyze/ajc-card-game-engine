@@ -51,15 +51,16 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 					// ask for bets (minBet to maxBet)
 					for (var i = 0; i < this.players.length; i++) {
 						do {
-							repeat = false;
-							name = this.players[i].name;
-							bet = prompt(name + ": How much would you like to bet?");
-							if (bet === false) {
-								break;
+							var repeat = false;	
+							var player = this.players[i]	;					
+							var name = player.name;
+							var bet = prompt(name + ": How much would you like to bet?");
+							if (bet === false || bet == "")) {
+								bet = 2;
 							} else if (isNaN(+bet)) {
 								alert("You must enter only numbers.");
 								repeat = true;
-							} else if (bet > this.players[i].bank) {
+							} else if (bet > player.bank) {
 								alert("You don't have enough chips!");
 								repeat = true;
 							} else if (bet > this.maxBet) {
@@ -71,8 +72,8 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 							} else {
 								repeat = false;
 							}
-						}	while (repeat == true);
-						this.players[i].bet = +bet;
+						} 	while (repeat == true);
+						player.bet = player.bankDebit(bet);
 						appendToLog(name + " bets " + +bet);
 					}
 				},
@@ -305,6 +306,7 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 			this.totalScore = 0;
 			this.bank = 100;
 			this.banklog = [];
+			this.ui = {};
 
 			this.score = function(scoreDelta) {
 				// set or return player score
@@ -332,13 +334,13 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 				this.bank += creditAmount;
 				this.bankLog.push("Credit: " + creditAmount);
 				appendToLog(this.name + " credited " + creditAmount);
-				return this.bank;
+				return creditAmount;
 			}
 			this.bankDebit = function(debitAmount) {
 				this.bank -= debitAmount;
 				this.bankLog.push("Debit: " + debitAmount);
 				appendToLog(this.name + " debited " + debitAmount);
-				return this.bank;
+				return debitAmount;
 			}
 		}
 		// Player methods:
@@ -372,7 +374,7 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 				do {
 					numPlayers = prompt("How many players? (1-6)");
 				} while (numPlayers < this.minPlayers || numPlayers > this.maxPlayers);
-				if (isNaN(+numPlayers)) {
+				if (isNaN(+numPlayers) || numPlayers == false) {
 					console.log("Canceled or invalid entry");
 					return false;
 				}
@@ -386,38 +388,42 @@ Work with your TA on Thursday to address any concepts you are still struggling w
 						name = "Player " + playerNum;
 					}
 
-					this.players[playerIndex] = new Player(name);
+					var player = new Player(name);
+					player.playerNum = playerNum;
+					
+					player.ui.playerbox = document.getElementById("playerbox");
+					player.ui.playerDiv = document.createElement("div");
+					player.ui.playerDiv.className="player";
+					player.ui.playerDiv.id="player" + playerNum;
+					player.ui.playerName = document.createElement("p");
+					player.ui.playerNameText = document.createTextNode(name);
+					player.ui.playerBet = document.createElement("p");
+					player.ui.playerBetText = document.createTextNode("Bet: ");
+					player.ui.playerHand = document.createElement("div");
+					player.ui.playerHand.className="handbox";
+					player.ui.playerHand.id="player" + playerNum + "handbox";
+					player.ui.playerScore = document.createElement("div");
+					player.ui.playerScore.className="scorebox";
+					player.ui.playerScore.id="player" + playerNum + "scorebox";
+					player.ui.playerScoreText = document.createElement("div");
+					player.ui.playerScoreText.className="scoretext";
+					player.ui.playerScoreText.id="player" + playerNum + "scoretext";
+					player.ui.playerHandText = document.createElement("div");
+					player.ui.playerHandText.className="handtext";
+					player.ui.playerHandText.id="player" + playerNum + "handtext";
 
-					var playerbox = document.getElementById("playerbox");
-					var playerDiv = document.createElement("div");
-					playerDiv.className="player";
-					playerDiv.id="player" + playerNum;
-					var playerName = document.createElement("p");
-					var playerNameText = document.createTextNode(name);
-					var playerBet = document.createElement("p");
-					var playerBetText = document.createTextNode("Bet: ");
-					var playerHand = document.createElement("div");
-					playerHand.className="handbox";
-					playerHand.id="player" + playerNum + "handbox";
-					var playerScore = document.createElement("div");
-					playerScore.className="scorebox";
-					playerScore.id="player" + playerNum + "scorebox";
-					var playerScoreText = document.createElement("div");
-					playerScoreText.className="scoretext";
-					playerScoreText.id="player" + playerNum + "scoretext";
-					var playerHandText = document.createElement("div");
-					playerHandText.className="handtext";
-					playerHandText.id="player" + playerNum + "handtext";
 
-
-					playerScore.appendChild(playerScoreText);
-					playerHand.appendChild(playerHandText);
-					playerName.appendChild(playerNameText);
-					playerDiv.appendChild(playerName);
-					playerDiv.appendChild(playerHand);
-					playerDiv.appendChild(playerScore);
-					playerbox.appendChild(playerDiv);
-
+					player.ui.playerScore.appendChild(playerScoreText);
+					player.ui.playerHand.appendChild(playerHandText);
+					player.ui.playerName.appendChild(playerNameText);
+					player.ui.playerBet.appendChild(playerBetText);
+					player.ui.playerDiv.appendChild(playerName);
+					player.ui.playerDiv.appendChild(playerBet)
+					player.ui.playerDiv.appendChild(playerHand);
+					player.ui.playerDiv.appendChild(playerScore);
+					player.ui.playerbox.appendChild(playerDiv);
+					
+					this.players[playerIndex] = player;
 					playerIndex++;
 				}
 			}  // end playerSetup function def
