@@ -1,0 +1,533 @@
+<!DOCTYPE html>
+<!--
+Model a Card Game
+
+Due Sunday by 11:59pm  Points 10  Submitting a website url
+
+Review the slides from class, and take the deck of cards example even further: make it into a game of your choosing. Pick something simple, and build it up a little at a time. Use what we discussed to help you identify what other classes of objects might be helpful. Remember the simple box diagram for classes? Sketch out each classes relevant attributes and services. What are each's responsibilities?
+
+When your game is working, create a new repo on GitHub, and push your code there, so it's publicly accessible. Submit a link to your repo.
+
+Work with your TA on Thursday to address any concepts you are still struggling with.
+-->
+<html>
+<head>
+	<script type="text/javascript">
+		var playgame, hideElement, fitWin, game;
+		// Games:
+		//	Blackjack
+		// 	High card
+		var blackjack, highcard;
+
+		highcard = {
+			gameParameters: {},
+			gameFunctions: {
+				play: function() {
+					;
+				}
+			},
+		};
+
+		blackjack = {
+			gameParameters: {
+				handSize: 2
+				, cardValueMod: {valuesToMod:[11,12,13], newValues:[10,10,10]}
+				, jokers: false
+				, vsType: "pvd" // player vs dealer
+				, houseDealt: true
+				, dealerHole: true // in 'no hole card' games (false), dealer's 2nd card drawn after all players have played their hands
+				, dealStyle: "normal"// deal cards round-robin
+				, playerHandHidden: [1, 1] // both player cards hidden
+				, dealerHandHidden: [1, 0] // 1st dealer card shown
+				, minPlayers: 1
+				, maxPlayers: 6
+				, betting: true // engage betting functions
+				, minBet: 2
+				, maxBet: 10
+				, postDeal: true // dealer action after deal
+			},
+			gameFunctions: {
+				placeBets: function() {
+					// ask for bets (minBet to maxBet)
+					for (var i = 0; i < this.players.length; i++) {
+						do {
+							repeat = false;
+							name = this.players[i].name;
+							bet = prompt(name + ": How much would you like to bet?");
+							if (bet === false) {
+								break;
+							} else if (isNaN(+bet)) {
+								alert("You must enter only numbers.");
+								repeat = true;
+							} else if (bet > this.players[i].bank) {
+								alert("You don't have enough chips!");
+								repeat = true;
+							} else if (bet > this.maxBet) {
+								alert("The maximum bet is " + this.maxBet);
+								repeat = true;
+							} else if (bet < this.minBet) {
+								alert("The minimum bet is " + this.minBet);
+								repeat = true;
+							} else {
+								repeat = false;
+							}
+						}	while (repeat == true);
+						this.players[i].bet = +bet;
+						appendToLog(name + " bets " + +bet);
+					}
+				},
+				deal: function() {
+					var cardsToDeal = [];
+					var dealTo = [];
+					var numToDeal;
+					numToDeal = (this.players.length + this.houseDealt) * 2;
+					console.log("Number in deck: " + this.deck.count());
+					console.log("Number to deal: " + numToDeal);
+					if (this.deck.count() < numToDeal) {
+						// deal with 'Not enough cards' in calling function
+						appendToLog("Not enough cards");
+						return false;
+					}
+					appendToLog("Dealing cards");
+					for (player in this.players) {
+						dealTo.push(this.players[player]);
+					}
+					if (this.houseDealt) {
+						dealTo.push(this.dealer);
+					}
+					cardsToDeal = this.deck.getCards(numToDeal);
+					while (cardsToDeal.length > 0) {
+						for (person in dealTo) {
+							dealTo[person].hand[0].push(cardsToDeal.shift());
+							console.log(dealTo[person].name + " recieved a card.");
+						}
+					}
+				},
+				playHand: function() {
+
+				},
+				play: function() {
+					var roundNum, repeat, name, bet;
+					roundNum = 0;
+					// play procedures:
+					this.placeBets();
+					// deal
+						// based on handSize and playerHandHidden/dealerHandHidden
+					this.deal();
+					// show player hands and dealer's first card
+						// ask for insurance if dealer shows an ace
+
+					// start with player to left (players[1])
+					// for each player
+							// if yes, set player.insured to true
+						// show card count, inform soft/hard (if ace)
+						// check for 21/bust
+						// check for pair
+							// if pair, ask if split
+								// if split, make a second hand with same bet
+						// while hand score < 21, ask hit/stay
+							// if hit, deal new face-up card
+								// score new hand, check for 21/bust
+							// if stay, hold score
+					// after all players hands
+						// if dealerHole == false, deal card to dealer face-up
+						// handle dealer play
+						// players where win == false, compare scores
+							// if push, deal with it
+							// set player.win to true/false
+						// payout
+						// clear table
+					// next hand
+				}
+			}
+		}
+
+
+		function Deck() {
+			// Deck of cards
+			this.cards = [];
+			this.count = function() {
+				return this.cards.length;
+			};
+			this.init = function() {
+				for (s = 1; s <= 4; s++) {
+				// start loop of suits, s
+				// console.log("Suit: " + s);
+					for (r = 1; r <= 13; r++) {
+						// start loop of ranks, r
+						// console.log("Rank: " + r);
+						this.cards.push(new Card(r, s));
+					}
+				}
+			}
+			this.mergeDecks = function(otherDeck) {
+				for (card in otherDeck.cards) {
+					this.cards.push(otherDeck.cards.pop());
+				}
+			}
+			this.shuffle = function() {
+				// Shuffle the cards array
+				// based on Fisher-Yates (aka Knuth) Shuffle
+				// see https://github.com/coolaj86/knuth-shuffle
+				var currentIndex, cardTemp, cardRand;
+				currentIndex = this.cards.length;
+				console.log("Shuffling");
+				// while cards left unshuffled
+				while (currentIndex != 0) {
+					// pick a random card
+					cardRand = Math.floor(Math.random() * currentIndex);
+					currentIndex -= 1;
+					// swap it with the current card
+					cardTemp = this.cards[currentIndex];
+					this.cards[currentIndex] = this.cards[cardRand];
+					this.cards[cardRand] = cardTemp;
+				}
+				appendToLog("Shuffled");
+			}
+			this.getCard = function() {
+				// get a card from the top of the deck
+				// TODO: check for out of cards!
+				var card = this.cards.shift();
+				if (card != undefined) {
+					return card;
+				} else {
+					return null;
+				}
+			}
+			this.getCards = function(numCards) {
+				var cards = [];
+				var i = numCards;
+				while (i > 0) {
+					cards.push(this.getCard());
+					i--;
+				}
+				console.log("Got " + cards.length + " cards");
+				return cards;
+			}
+			this.addCard = function(card) {
+				// add a card to the bottom of the deck
+				if (card.constructor.name == "Card") {
+					this.cards.push(card);
+					console.log(card.cardStr + " added to deck.");
+				} else {
+					console.log("Not a card object. No change to deck.");
+				}
+			}
+		}
+		// Deck methods:
+		//	count - returns the number of cards in the deck
+		//	init - initializes to a standard 52 card deck
+		//  shuffle - shuffles the cards array
+		//	getCard - removes and returns a single card from the deck
+		//	addCard - adds a specific card to the deck
+		//	removeCard - removes specific card from the deck (not implemented)
+
+		function Card(rank, suit) {
+			// Build a card
+			// Joker is rank 0, suit 0 (or empty)
+			this.rank = rank;
+			this.suit = suit;
+			this.value = rank;
+			this.hidden = true;
+			this.rankStrDefs = {0:"Joker", 1:"A", 11:"J", 12:"Q", 13:"K", default:this.rank.toString()};
+			this.suitStrDefs = {0:"Unsuited", 1:"Spades", 2:"Hearts", 3:"Clubs", 4:"Diamonds", default:"Unsuited"};
+			this.setStr = function() {
+				if (this.rank in this.rankStrDefs) {
+					this.rankStr = this.rankStrDefs[this.rank];
+				} else {
+					this.rankStr = this.rankStrDefs["default"];
+				}
+				if (this.suit in this.suitStrDefs) {
+					this.suitStr = this.suitStrDefs[this.suit];
+				} else {
+					this.suitStr = this.suitStrDefs["default"];
+				}
+				if (this.suitStr == "Unsuited") {
+					return this.rankStr;
+				} else {
+					return this.rankStr + " of " + this.suitStr;
+				}
+			}
+			this.cardStr = this.setStr();
+			this.show = function() {
+				this.hidden = false;
+				appendToLog(this.cardStr + " revealed");
+			}
+			this.hide = function() {
+				this.hidden = true;
+				appendToLog(this.cardStr + " hidden");
+			}
+		}
+		// Card methods:
+		//	setStr - used internally, sets card strings
+		//	show - unmarks the card as hidden
+		//	hide - marks the card as hidden
+
+		function Dealer(rules) {
+			this.name = "Dealer";
+			this.hand = [[],[]];
+			this.bank = 100000;
+
+			this.init = function(rules) {
+				// initialize a new dealer
+				// feed in dealing rules?
+				this.rules = rules;
+			}
+			this.dealCard = function() {
+				// deals a single card
+				// TODO need to check if deck is empty
+				var card = this.deck.getCard();
+				if (card != null) {
+					return this.deck.getCard();
+				} else {
+					// call the handler in rules
+					// until then...
+					return null;
+				}
+			}
+			this.newDeck = function() {
+				// returns a new shuffled deck
+				var deck = new Deck();
+				deck.init();
+				deck.shuffle();
+				return deck;
+			}
+		}
+		// Dealer methods:
+		// dealCard - returns a single card from the given deck
+		// dealHands (not implemented)
+		// newDeck - gives the dealer a new deck
+
+		function Player(name) {
+			this.name = name;
+			this.hand = [[],[]];
+			this.handScore = 0;
+			this.totalScore = 0;
+			this.bank = 100;
+			this.banklog = [];
+
+			this.score = function(scoreDelta) {
+				// set or return player score
+				this.totalScore += scoreDelta;
+				appendToLog(this.name + " scored " + scoreDelta + ". Score: " + this.totalScore);
+				return this.totalScore;
+			}
+			this.scoreHand = function(split) {
+				var handIndex = 0;
+				var handScore = 0;
+				if (split == "split") {
+					handIndex = 1;
+				}
+				var hand = this.hand[handIndex];
+				for (card in hand) {
+					handScore += hand[card].value;
+				}
+				this.handScore = handScore;
+				return handScore;
+			}
+			this.updateHandText = function(text) {
+				var element = document.getElementById("");
+			}
+			this.bankCredit = function(creditAmount) {
+				this.bank += creditAmount;
+				this.bankLog.push("Credit: " + creditAmount);
+				appendToLog(this.name + " credited " + creditAmount);
+				return this.bank;
+			}
+			this.bankDebit = function(debitAmount) {
+				this.bank -= debitAmount;
+				this.bankLog.push("Debit: " + debitAmount);
+				appendToLog(this.name + " debited " + debitAmount);
+				return this.bank;
+			}
+		}
+		// Player methods:
+		// score - get score, or set score with this.score(score change)
+		// scoreHand - calculate hand score. If the hand is a split, score the second hand
+		// updateHandText - update the UI hand text
+		// bankCredit - add to bank
+		// bankDebit - remove from bank
+
+		function Game(game) {
+			this.getSet = function(game, array) {
+				// get and set game parameters
+				for (var item in game[array]) {
+					this[item] = game[array][item];
+				}
+			}
+			this.applyCardMods = function() {
+				var cards = this.deck.cards;
+				for (mod in this.cardValueMod.valuesToMod) {
+					for (card in cards) {
+						if (cards[card].rank == this.cardValueMod.valuesToMod[mod]) {
+							cards[card].value = this.cardValueMod.newValues[mod];
+						}
+					}
+				}
+			}
+			this.playerSetup = function() {
+				var numPlayers, playerIndex;
+				this.players = [];
+				// ask how many players
+				do {
+					numPlayers = prompt("How many players? (1-6)");
+				} while (numPlayers < this.minPlayers || numPlayers > this.maxPlayers);
+				if (isNaN(+numPlayers)) {
+					console.log("Canceled or invalid entry");
+					return false;
+				}
+				playerIndex = 0;
+				playerNum = 0;
+				while (numPlayers > 0) {
+					numPlayers--;
+					playerNum++;
+					var name = prompt("Enter a name for Player " + playerNum + ": \n(Default: Player " + playerNum + ")");
+					if (name == null || name == false || name == "") {
+						name = "Player " + playerNum;
+					}
+
+					this.players[playerIndex] = new Player(name);
+
+					var playerbox = document.getElementById("playerbox");
+					var playerDiv = document.createElement("div");
+					playerDiv.className="player";
+					playerDiv.id="player" + playerNum;
+					var playerName = document.createElement("p");
+					var playerNameText = document.createTextNode(name);
+					var playerBet = document.createElement("p");
+					var playerBetText = document.createTextNode("Bet: ");
+					var playerHand = document.createElement("div");
+					playerHand.className="handbox";
+					playerHand.id="player" + playerNum + "handbox";
+					var playerScore = document.createElement("div");
+					playerScore.className="scorebox";
+					playerScore.id="player" + playerNum + "scorebox";
+					var playerScoreText = document.createElement("div");
+					playerScoreText.className="scoretext";
+					playerScoreText.id="player" + playerNum + "scoretext";
+					var playerHandText = document.createElement("div");
+					playerHandText.className="handtext";
+					playerHandText.id="player" + playerNum + "handtext";
+
+
+					playerScore.appendChild(playerScoreText);
+					playerHand.appendChild(playerHandText);
+					playerName.appendChild(playerNameText);
+					playerDiv.appendChild(playerName);
+					playerDiv.appendChild(playerHand);
+					playerDiv.appendChild(playerScore);
+					playerbox.appendChild(playerDiv);
+
+					playerIndex++;
+				}
+			}  // end playerSetup function def
+			this.updateScore = function() {
+				;
+			}
+
+			this.getSet(game, "gameParameters");
+			this.getSet(game, "gameFunctions");
+			// initialize dealer
+			this.dealer = new Dealer();
+			// set up deck
+				// TODO: ask how many decks??
+			this.deck = this.dealer.newDeck();
+			// this.applyCardMods();
+			// set up players
+			// call playerSetup function
+			if (this.playerSetup() == false) {}
+			if (this.goodToGo == false) {
+				appendToLog("Quitting. Bye!")
+				return false;
+			} else {}
+			// run game
+			this.play();
+		}
+		// Game methods:
+		//
+
+		// Global functions (for now)
+		playgame = function(gameRules){
+			game = new Game(gameRules);
+		}
+		appendToLog = function(text) {
+			var textarea = document.getElementById("gamelog");
+			textarea.innerHTML += "<br/>" + text;
+			console.log(text);
+			textarea.scrollTop = textarea.scrollHeight;
+		}
+		hideElement = function(elementid){
+			document.getElementById(elementid).style.display="none";
+			console.log(elementid + " hidden");
+		}
+		fitWin = function(classArray){
+			var ww = window.innerWidth || document.documentElement.clientWidth || document.body.clientWidth;
+			var wh = window.innerHeight || document.documentElement.clientHeight || document.body.clientHeight;
+			if (typeof classArray == "string") {
+				var s = [];
+				s.push(classArray);
+				classArray = s;
+			}
+			for (var i = 0; i < classArray.length; i++) {
+				var elements = document.getElementsByClassName(classArray[i]);
+					elements[i].setAttribute("width",(ww + "px"));
+					elements[i].setAttribute("height", (wh + "px"));
+			}
+		}
+
+	</script>
+
+	<style type="text/css">
+		body {margin:0px; padding:0px;}
+		p {text-align:center;}
+		#page {background-color:#EEB; text-align:center; vertical-align:center;}
+		#hidebox {position:fixed; top:0px; left:0px; width:100%; height:100%; background-color:transparent;}
+		#curtain {position:fixed; background-color:white; display:block; z-index:5;}
+		div, button {margin-right:auto; margin-left:auto;}
+		#gamebox {background-color:#200; border:5px solid #300; width:75%; margin-top:23px; border-radius:69px;}
+		#surface {height:396px; padding:5px; border-radius:69px;
+			background: -webkit-linear-gradient(left top, #060, #0B0, #060);
+	  	background: -o-linear-gradient(bottom right, #060, #0B0, #060);
+	  	background: -moz-linear-gradient(bottom right, #060, #0B0, #060);
+	  	background: linear-gradient(to bottom right, #060, #0B0, #060);
+		}
+		#logbox {width:70%; height:128px; border:2px solid #300; background-color: white; margin-right:auto; margin-left:auto; margin-top:2px; margin-bottom:2px; text-align: center;}
+		#gamelog {width:100%; height:100%; overflow:scroll;}
+		#start {position:relative; margin-top:64px; font-family:Verdana, Geneva, sans-serif; font-weight:bold; width:128px; height:42px; z-index:10;}
+		.hide {display:inherit;}
+		.clear {clear:both;}
+		#playerbox, #dealerbox {text-align:center; width:100%; height:130px;}
+		.player, #dealer {display:inline-block; margin-left:10px; margin-right:10px; height:128px; width:96px; border:1px solid #300;}
+	</style>
+</head>
+
+<body onload="fitWin('fit')" onresize="fitWin('fit')">
+<div id="page fit">
+	<div id="hidebox">
+		<img id="curtain" src="blank.gif" class="hide fit">
+		<button type="button" id="start" class="hide" onclick="hideElement('hidebox'); playgame(blackjack);">
+			BLACKJACK
+		</button>
+	</div>
+	<div id="gamebox" class="clear">
+		<div id="surface" class="clear">
+			<div id="dealerbox" class="clear">
+				<div id="dealer">
+					<p>DEALER</p>
+				</div>
+			</div>
+			<div id="logbox" class="clear">
+				<div id="gamelog">
+					Welcome to Blackjack!
+				</div>
+			</div>
+			<div id="playerbox" class="clear">
+				<!-- make a box here for each player -->
+					<!-- each .playerbox -->
+			</div>
+		</div><!--/surface-->
+	</div><!--/gamebox-->
+</div><!--/page-->
+</body>
+
+</html>
