@@ -26,8 +26,8 @@
 				, houseDealt: true
 				, dealerHole: true // in 'no hole card' games (false), dealer's 2nd card drawn after all players have played their hands
 				, dealStyle: "normal"// deal cards round-robin
-				, playerHandHidden: [1, 1] // both player cards shown
-				, dealerHandHidden: [1, 0] // 1st dealer card shown
+				, playerHandHidden: [0, 0] // both player cards shown
+				, dealerHandHidden: [0, 1] // 1st dealer card shown
 				, minPlayers: 1
 				, maxPlayers: 4
 				, betting: true // engage betting functions
@@ -36,6 +36,38 @@
 				, postDeal: true // dealer action after deal
 			},
 			gameFunctions: {
+				ask: {
+					// for prompts etc.
+					// integrate into ui
+					numPlayers: function(minPlayers, maxPlayers) {
+						var string = "How many players? (" + minPlayers + "-" + maxPlayers + ")";
+						return prompt(string);
+					},
+					playerName: function(playerNum) {
+						var string = "Enter a name for Player " + playerNum + ": \n(Default: Player " + playerNum + ")";
+						return prompt(string);
+					},
+					bet: function(name, minBet) {
+						var string = name + ": How much would you like to bet?\n(Minimum: " + minBet + ")";
+						return prompt(string);
+					},
+					numbersOnly: function() {
+						return alert("You must enter only numbers.");
+					},
+					outOfChips: function() {
+						return alert("You don't have enough chips!");
+					},
+					maxBet: function(maxBet) {
+						return alert("The maximum bet is " + maxBet);
+					},
+					minBet: function(minBet) {
+						return alert("The minimum bet is " + minBet);
+					},
+					hit: function(player) {
+						var string = player.name + ": Your current hand is worth " + player.handScore + "\n\nWould you like to hit(click OK) or stay(click Cancel)?";
+						return confirm(string);
+					}
+				},
 				placeBets: function() {
 					// ask for bets (minBet to maxBet)
 					for (var i = 0; i < this.players.length; i++) {
@@ -43,21 +75,21 @@
 							var repeat = false;
 							var player = this.players[i];
 							var name = player.name;
-							var bet = prompt(name + ": How much would you like to bet?");
+							var bet = this.ask.bet(name, this.minBet);
 							if (bet === false || bet == "" || bet == null) {
 								bet = 2;
 								break;
 							} else if (isNaN(+bet)) {
-								alert("You must enter only numbers.");
+								this.ask.numbersOnly();
 								repeat = true;
 							} else if (bet > player.bank) {
-								alert("You don't have enough chips!");
+								this.ask.outOfChips();
 								repeat = true;
 							} else if (bet > this.maxBet) {
-								alert("The maximum bet is " + this.maxBet);
+								this.ask.maxBet(this.maxBet);
 								repeat = true;
 							} else if (bet < this.minBet) {
-								alert("The minimum bet is " + this.minBet);
+								this.ask.minBet(this.minBet);
 								repeat = true;
 							} else {
 								repeat = false;
@@ -70,9 +102,9 @@
 				},
 				deal: function() {
 					var cardsToDeal = [];
-					var dealTo = [];
+					var dealTo = this.dealTo;
 					var numToDeal;
-					numToDeal = (this.players.length + this.houseDealt) * 2;
+					numToDeal = (this.players.length + this.houseDealt) * this.handSize;
 					console.log("Number in deck: " + this.deck.count());
 					console.log("Number to deal: " + numToDeal);
 					if (this.deck.count() < numToDeal) {
@@ -81,27 +113,43 @@
 						return false;
 					}
 					appendToLog("Dealing cards");
-					for (i in this.players) {
-						var player = this.players[i];
-						document.getElementById(player.ui.handbox.id).innerHTML = "";
-						dealTo.push(player);
-					}
-					if (this.houseDealt) {
-						dealTo.push(this.dealer);
-						document.getElementById(this.dealer.ui.handbox.id).innerHTML = "";
-					}
+
 					cardsToDeal = this.deck.getCards(numToDeal);
+					var handIndex = 0;
+					var hide = true;
 					while (cardsToDeal.length > 0) {
-						for (person in dealTo) {
+						for (personIndex in dealTo) {
+							person = dealTo[personIndex];
 							card = cardsToDeal.shift();
-							document.getElementById(dealTo[person].ui.handbox.id).innerHTML += card.getStr() + "<br/>";
-							dealTo[person].hand[0].push(card);
-							console.log(dealTo[person].name + " recieved a card.");
+							if (person.role == "player") {
+								if (this.playerHandHidden[handIndex] == 0) {
+									var hide = false;
+								} else {
+									var hide = true;
+								}
+							} else if (person.role == "dealer") {
+								if (this.dealerHandHidden[handIndex] == 0) {
+									var hide = false;
+								} else {
+									var hide = true;
+								}
+							}
+							document.getElementById(person.ui.handbox.id).innerHTML += card.getStr(hide) + "<br/>";
+							person.hand[0].push(card);
+							console.log(person.name + " recieved a card.");
 						}
+						handIndex += 1;
 					}
 				},
-				playHand: function() {
-
+				playHand: function(player) {
+					var hit, card;
+					hit = this.ask.hit(player);
+					if (hit == true) {
+						card = this.deck.getCard();
+						document.getElementById(player.ui.handbox.id).innerHTML += card.getStr(false) + "<br/>";
+						person.hand[0].push(card);
+						console.log(person.name + " recieved a card.");
+					}
 				},
 				play: function() {
 					var roundNum, repeat, name, bet;
@@ -112,9 +160,15 @@
 						// based on handSize and handboxHidden/dealerHandHidden
 					this.deal();
 					// show player hands and dealer's first card
-						// ask for insurance if dealer shows an ace
+						// TODO: ask for insurance if dealer shows an ace
+					for (p in this.players){
+						var player = this.players[p];
+						var score = player.scoreHand();
+						this.playHand(player);
 
-					// start with player to left (players[1])
+					}
+					// start with player to left (players[0])
+
 					// for each player
 							// if yes, set player.insured to true
 						// show card count, inform soft/hard (if ace)
@@ -133,7 +187,7 @@
 							// if push, deal with it
 							// set player.win to true/false
 						// payout
-						// clear table
+						// clear table, clear variable text
 					// next hand
 				}
 			}
@@ -246,7 +300,12 @@
 				}
 			}
 			this.cardStr = this.setStr();
-			this.getStr = function() {
+			this.getStr = function(hide) {
+				if (hide == true) {
+					this.hide();
+				} else {
+					this.show();
+				}
 				if (this.hidden == true) {
 					return "--hidden--";
 				} else {
@@ -255,11 +314,11 @@
 			}
 			this.show = function() {
 				this.hidden = false;
-				appendToLog(this.cardStr + " revealed");
+				console.log(this.cardStr + " revealed");
 			}
 			this.hide = function() {
 				this.hidden = true;
-				appendToLog("Card hidden.");
+				console.log("Card hidden.");
 			}
 		}
 		// Card methods:
@@ -268,13 +327,17 @@
 		//	hide - marks the card as hidden
 
 		function Dealer(rules) {
+			this.role = "dealer";
 			this.name = "Dealer";
 			this.hand = [[],[]];
 			this.bank = 100000;
 			this.ui = {};
 
 			this.initui = function() {
-					this.ui.dealer = document.getElementById("dealer");
+					this.ui.dealerbox = document.getElementById("dealerbox");
+					this.ui.dealer = document.createElement("div");
+					this.ui.dealer.className="dealer";
+					this.ui.dealer.id="dealer";
 
 					this.ui.namebox = document.createElement("p");
 					this.ui.namebox.className="namebox";
@@ -295,7 +358,6 @@
 
 					this.ui.scoreboxText = document.createElement("div");
 					this.ui.scoreboxText.className="scoretext";
-					this.ui.scoreboxText.id="dealerScoretext";
 
 					this.ui.scorebox.appendChild(this.ui.scoreboxText);
 					this.ui.handbox.appendChild(this.ui.handboxText);
@@ -303,6 +365,7 @@
 					this.ui.dealer.appendChild(this.ui.namebox);
 					this.ui.dealer.appendChild(this.ui.handbox);
 					this.ui.dealer.appendChild(this.ui.scorebox);
+					this.ui.dealerbox.appendChild(this.ui.dealer);
 			}
 			this.init = function(rules) {
 				// initialize a new dealer
@@ -312,8 +375,8 @@
 			}
 			this.dealCard = function() {
 				// deals a single card
-				// TODO need to check if deck is empty
 				var card = this.deck.getCard();
+				// check if deck is empty
 				if (card != null) {
 					return this.deck.getCard();
 				} else {
@@ -335,7 +398,9 @@
 		// newDeck - gives the dealer a new deck
 
 		function Player(name) {
+			this.role = "player";
 			this.name = name;
+			this.playerNum = 0;
 			this.hand = [[],[]];
 			this.handScore = 0;
 			this.totalScore = 0;
@@ -365,10 +430,10 @@
 					this.ui.scorebox = document.createElement("div");
 					this.ui.scorebox.className="scorebox";
 					this.ui.scorebox.id="player" + this.playerNum + "scorebox";
-					this.ui.scoreboxText = document.createElement("div");
-					this.ui.scoreboxText.className="scoretext";
-					this.ui.scoreboxText.id="player" + this.playerNum + "scoretext";
-					this.ui.scorebox.appendChild(this.ui.scoreboxText);
+					//this.ui.scoreboxText = document.createElement("div");
+					//this.ui.scoreboxText.className="scoretext";
+					//this.ui.scoreboxText.id="player" + this.playerNum + "scoretext";
+					//this.ui.scorebox.appendChild(this.ui.scoreboxText);
 					this.ui.handbox.appendChild(this.ui.handboxText);
 					this.ui.namebox.appendChild(this.ui.nameboxText);
 					this.ui.playerBet.appendChild(this.ui.playerBetText);
@@ -395,6 +460,8 @@
 					handScore += hand[card].value;
 				}
 				this.handScore = handScore;
+				var scoretext = document.getElementById("player" + this.playerNum + "scorebox");
+				scoretext.innerHTML="Hand value:<br/>" + handScore;
 				return handScore;
 			}
 			this.updateHandText = function(text) {
@@ -403,13 +470,13 @@
 			this.bankCredit = function(creditAmount) {
 				this.bank += creditAmount;
 				this.banklog.push("Credit: " + creditAmount);
-				appendToLog(this.name + " credited " + creditAmount);
+				console.log(this.name + " credited " + creditAmount);
 				return creditAmount;
 			}
 			this.bankDebit = function(debitAmount) {
 				this.bank -= debitAmount;
 				this.banklog.push("Debit: " + debitAmount);
-				appendToLog(this.name + " debited " + debitAmount);
+				console.log(this.name + " debited " + debitAmount);
 				return debitAmount;
 			}
 		}
@@ -440,9 +507,10 @@
 			this.playerSetup = function() {
 				var numPlayers, playerIndex;
 				this.players = [];
+				this.dealTo = [];
 				// ask how many players
 				do {
-					numPlayers = prompt("How many players? (" + this.minPlayers + "-" + this.maxPlayers + ")");
+					numPlayers = this.ask.numPlayers(this.minPlayers, this.maxPlayers);
 				} while (numPlayers < this.minPlayers || numPlayers > this.maxPlayers);
 				if (isNaN(+numPlayers) || numPlayers == false) {
 					console.log("Canceled or invalid entry");
@@ -453,7 +521,7 @@
 				while (numPlayers > 0) {
 					numPlayers--;
 					playerNum++;
-					var name = prompt("Enter a name for Player " + playerNum + ": \n(Default: Player " + playerNum + ")");
+					var name = this.ask.playerName(playerNum);
 					if (name == null || name == false || name == "") {
 						name = "Player " + playerNum;
 					}
@@ -461,7 +529,11 @@
 					player.playerNum = playerNum;
 					player.initui();
 					this.players[playerIndex] = player;
+					this.dealTo.push(player);
 					playerIndex++;
+				}
+				if (this.houseDealt) {
+					this.dealTo.push(this.dealer);
 				}
 			}  // end playerSetup function def
 			this.updateScore = function() {
@@ -526,27 +598,31 @@
 		.hide {display:inherit;}
 		.clear {clear:both;}
 		div, button {margin-right:auto; margin-left:auto;}
-		p {text-align:center; margin-top:6px; margin-bottom:6px;}
-		.player, #dealer {display:inline-block; margin-left:10px; margin-right:10px; height:142px; width:112px; border:1px solid #300;}
-		.betbox {}
-		.handbox {}
-		.scorebox {}
-		.scoretext {}
-		.handtext {}
+		p {text-align:center; margin-top:4px; margin-bottom:4px;}
+		.player, #dealer {display:inline-block; margin-left:10px; margin-right:10px; height:95%; width:112px; border:1px solid #300; background-color: #EEE;}
+		.betbox {width:95%; background-color: #E33;}
+		.handbox {width:95%; background-color: #EEE;}
+		.scorebox {width:95%; background-color: #EEE;}
+		.scoretext {width:95%; background-color: #3E3;}
+		.handtext {width:95%; background-color: #EEE;}
 		#page {background-color:#EEB; text-align:center; vertical-align:center;}
-		#hidebox {position:fixed; top:0px; left:0px; width:100%; height:100%; background-color:transparent;}
-		#curtain {position:fixed; background-color:white; display:block; z-index:5;}
+		#hidebox {position:fixed; top:0px; left:0px; width:100%; height:100%; background-color:transparent; z-index:90;}
+		#curtain {position:fixed; background-color:white; display:block; z-index:95;}
+		#start {position:relative; margin-right:auto; margin-left:auto; margin-top:64px; font-family:Verdana, Geneva, sans-serif; font-weight:bold; width:128px; height:42px; z-index:99;}
 		#gamebox {background-color:#200; border:5px solid #300; width:75%; margin-top:23px; border-radius:69px;}
-		#surface {height:420px; padding:5px; border-radius:69px;
+		#surface {min-height:420px; padding:5px; border-radius:inherit;
 			background: -webkit-linear-gradient(left top, #060, #0B0, #060);
 	  	background: -o-linear-gradient(bottom right, #060, #0B0, #060);
 	  	background: -moz-linear-gradient(bottom right, #060, #0B0, #060);
 	  	background: linear-gradient(to bottom right, #060, #0B0, #060);
 		}
-		#logbox {width:60%; height:128px; border:2px solid #300; border-radius:23px; background-color: white; margin-right:auto; margin-left:auto; margin-top:2px; margin-bottom:2px; text-align: center;}
-		#gamelog {width:100%; height:100%; overflow-y:scroll;}
-		#start {position:relative; margin-top:64px; font-family:Verdana, Geneva, sans-serif; font-weight:bold; width:128px; height:42px; z-index:10;}
-		#playerbox, #dealerbox {text-align:center; width:100%;}
+		#promptbox {height:42px;}
+		#logbox {width:60%; height:128px; border:2px solid #300; border-radius:23px; background-color: #200; margin-top:2px; margin-bottom:2px; text-align: center;}
+		#gamelog {width:80%; height:100%; background-color: #EEE; overflow-y:scroll;}
+		#peoplebox {position:relative; width:80%; height:232px; text-align:center; margin-bottom:5px;}
+		#playerbox, #dealerbox {height:230px;}
+		#dealerbox {float:left;}
+		#playerbox {float:right;}
 	</style>
 </head>
 
@@ -560,18 +636,20 @@
 	</div>
 	<div id="gamebox" class="clear">
 		<div id="surface" class="clear">
-			<div id="dealerbox" class="clear">
-				<div id="dealer">
+			<div id="peoplebox">
+				<div id="dealerbox">
+					<!-- make a box here for the dealer -->
 				</div>
+				<div id="playerbox">
+					<!-- make a box here for each player -->
+				</div>
+			</div>
+			<div id="promptbox" class="clear">
 			</div>
 			<div id="logbox" class="clear">
 				<div id="gamelog">
 					Welcome to Blackjack!
 				</div>
-			</div>
-			<div id="playerbox" class="clear">
-				<!-- make a box here for each player -->
-					<!-- each .playerbox -->
 			</div>
 		</div><!--/surface-->
 	</div><!--/gamebox-->
