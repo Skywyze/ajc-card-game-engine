@@ -20,7 +20,7 @@
 		blackjack = {
 			gameParameters: {
 				handSize: 2
-				, cardValueMod: {valuesToMod:[11,12,13], newValues:[10,10,10]}
+				, cardValueMod: {ranksToMod:[1,11,12,13], newValues:[11,10,10,10]}
 				, jokers: false
 				, vsType: "pvd" // player vs dealer
 				, houseDealt: true
@@ -142,13 +142,53 @@
 					}
 				},
 				playHand: function(player) {
-					var hit, card;
-					hit = this.ask.hit(player);
-					if (hit == true) {
-						card = this.deck.getCard();
-						document.getElementById(player.ui.handbox.id).innerHTML += card.getStr(false) + "<br/>";
-						person.hand[0].push(card);
-						console.log(person.name + " recieved a card.");
+					var activate, acemod, hit, card;
+					acemod = false;
+					hit = false;
+					do {
+						// Ace value mods:
+						// use this.applyCardMods(cardValueMod) (from Game constructor)
+						// make A worth 11
+						// cardValueMod = {ranksToMod:[1], newValues:[11]}
+						// make A worth 1
+						// cardValueMod = {ranksToMod:[1], newValues:[1]}
+
+						// TODO: set active player and highlight element
+						activate = document.getElementById(player.ui);
+						player.scoreHand();
+						hit = this.ask.hit(player);
+						if (hit == true) {
+							card = this.deck.getCard();
+							document.getElementById(player.ui.handbox.id).innerHTML += card.getStr(false) + "<br/>";
+							player.hand[0].push(card);
+							console.log(player.name + " recieved a card.");
+							player.scoreHand();
+							if (player.handScore > 21) {
+								for (card in player.hand[0]) {
+									if (player.hand[0][card].rank == 1) {
+										this.applyCardMods({ranksToMod:[1], newValues:[1]});
+										acemod = true;
+									}
+								}
+								player.scoreHand();
+								if (player.handScore > 21) {
+									// bust
+									player.win = false;
+									appendToLog("Bust. You lose.");
+									break;
+								}
+							} else if (player.handScore == 21) {
+								// win
+								player.win = true;
+								appendToLog("Blackjack! You win!");
+								break;
+							}
+						}
+					} while (hit == true && player.hand[0].length < 5);
+					if (acemod == true) {
+						// return ace value to 11 if it was changed to 1
+						this.applyCardMods({ranksToMod:[1], newValues:[11]});
+						acemod = false;
 					}
 				},
 				play: function() {
@@ -163,7 +203,7 @@
 						// TODO: ask for insurance if dealer shows an ace
 					for (p in this.players){
 						var player = this.players[p];
-						var score = player.scoreHand();
+						// TODO: deal with splits
 						this.playHand(player);
 
 					}
@@ -407,6 +447,7 @@
 			this.bank = 100;
 			this.banklog = [];
 			this.ui = {};
+			this.win = false;
 
 			this.initui = function() {
 					this.ui.playerbox = document.getElementById("playerbox");
@@ -494,12 +535,19 @@
 					this[item] = game[array][item];
 				}
 			}
-			this.applyCardMods = function() {
+			this.applyCardMods = function(cardValueMod) {
+				// eg cardValueMod = {ranksToMod:[11,12,13], newValues:[10,10,10]}
 				var cards = this.deck.cards;
-				for (mod in this.cardValueMod.valuesToMod) {
-					for (card in cards) {
-						if (cards[card].rank == this.cardValueMod.valuesToMod[mod]) {
-							cards[card].value = this.cardValueMod.newValues[mod];
+				if (cardValueMod == null) {
+					cardValueMod = this.cardValueMod;
+					console.log("Initializing card values.");
+				}
+				for (mod in cardValueMod.ranksToMod) {
+					for (c in cards) {
+						var card = cards[c];
+						if (card.rank == cardValueMod.ranksToMod[mod]) {
+							card.value = cardValueMod.newValues[mod];
+							console.log("Value of " + card.rankStr + " set to " + card.value);
 						}
 					}
 				}
@@ -535,7 +583,7 @@
 				if (this.houseDealt) {
 					this.dealTo.push(this.dealer);
 				}
-			}  // end playerSetup function def
+			}
 			this.updateScore = function() {
 				;
 			}
@@ -610,8 +658,8 @@
 		#hidebox {position:fixed; top:0px; left:0px; width:100%; height:100%; background-color:transparent; z-index:90;}
 		#curtain {position:fixed; background-color:white; display:block; z-index:95;}
 		#start {position:relative; margin-right:auto; margin-left:auto; margin-top:64px; font-family:Verdana, Geneva, sans-serif; font-weight:bold; width:128px; height:42px; z-index:99;}
-		#gamebox {background-color:#200; border:5px solid #300; width:75%; margin-top:23px; border-radius:69px;}
-		#surface {min-height:420px; min-width:845px; padding:5px; border-radius:inherit;
+		#gamebox {min-height:420px; min-width:855px; background-color:#200; border:5px solid #300; width:75%; margin-top:23px; border-radius:69px;}
+		#surface {padding:5px; border-radius:inherit;
 			background: -webkit-linear-gradient(left top, #060, #0B0, #060);
 	  	background: -o-linear-gradient(bottom right, #060, #0B0, #060);
 	  	background: -moz-linear-gradient(bottom right, #060, #0B0, #060);
